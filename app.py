@@ -5,17 +5,19 @@ import yfinance as yf
 import plotly.graph_objects as go
 import joblib
 from datetime import datetime, timedelta
+from database import init_db, get_portfolio, update_portfolio, add_trade, get_trade_history, reset_db
 
 # Page config
 st.set_page_config(page_title="Gold Price Predictor", page_icon="💰", layout="wide")
 
-# Initialize Demo Trading Session State
-if 'balance' not in st.session_state:
-    st.session_state.balance = 100000.0  # Initial 100,000 in selected currency (default MAD)
-if 'holdings' not in st.session_state:
-    st.session_state.holdings = 0.0      # Grams of gold
-if 'history' not in st.session_state:
-    st.session_state.history = []
+# Initialize Persistent Database
+init_db()
+
+# Load portfolio from DB into session state if not already done
+if 'balance' not in st.session_state or 'holdings' not in st.session_state:
+    db_balance, db_holdings = get_portfolio()
+    st.session_state.balance = db_balance
+    st.session_state.holdings = db_holdings
 
 st.title("💰 Gold Price Predictor (24K Gold)")
 st.markdown("""
@@ -225,13 +227,8 @@ if not data.empty:
                 elif buy_amount > 0:
                     st.session_state.balance -= cost
                     st.session_state.holdings += buy_amount
-                    st.session_state.history.append({
-                        "Type": "BUY",
-                        "Amount": buy_amount,
-                        "Price": current_price_final,
-                        "Total": cost,
-                        "Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    })
+                    update_portfolio(st.session_state.balance, st.session_state.holdings)
+                    add_trade("BUY", buy_amount, current_price_final, cost, selected_currency, selected_karat, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                     st.success(f"Bought {buy_amount:.3f}g of gold!")
                     st.rerun()
 
@@ -247,28 +244,23 @@ if not data.empty:
                 elif sell_amount > 0:
                     st.session_state.balance += revenue
                     st.session_state.holdings -= sell_amount
-                    st.session_state.history.append({
-                        "Type": "SELL",
-                        "Amount": sell_amount,
-                        "Price": current_price_final,
-                        "Total": revenue,
-                        "Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    })
+                    update_portfolio(st.session_state.balance, st.session_state.holdings)
+                    add_trade("SELL", sell_amount, current_price_final, revenue, selected_currency, selected_karat, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                     st.success(f"Sold {sell_amount:.3f}g of gold!")
                     st.rerun()
 
         st.divider()
         st.write("### Trade History")
-        if st.session_state.history:
-            history_df = pd.DataFrame(st.session_state.history)
-            st.table(history_df.iloc[::-1]) # Show latest first
+        history_df = get_trade_history()
+        if not history_df.empty:
+            st.table(history_df)
         else:
             st.write("No trades yet.")
             
         if st.button("Reset Portfolio"):
+            reset_db()
             st.session_state.balance = 100000.0
             st.session_state.holdings = 0.0
-            st.session_state.history = []
             st.rerun()
 
 else:
