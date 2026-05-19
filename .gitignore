@@ -5,10 +5,8 @@ __pycache__/
 venv/
 .env
 
-# Data and Models (Keep models if you want them on GitHub, but large CSVs should be ignored)
-data/gold_prices.csv
-models/gold_model.pkl
-models/features.pkl
+# Data and Models
+# data/gold_prices.csv
 
 # Streamlit
 .streamlit/
