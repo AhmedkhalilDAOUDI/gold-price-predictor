@@ -1,7 +1,14 @@
 import urllib.request
 import xml.etree.ElementTree as ET
+import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import pandas as pd
+
+# Ensure Lexicon is downloaded
+try:
+    nltk.data.find('sentiment/vader_lexicon.zip')
+except LookupError:
+    nltk.download('vader_lexicon')
 
 def get_gold_sentiment():
     print("Fetching gold market news...")

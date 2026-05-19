@@ -6,3 +6,4 @@ plotly
 joblib
 xgboost
 scikit-learn
+nltk
