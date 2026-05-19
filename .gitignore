@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Data and Models (Keep models if you want them on GitHub, but large CSVs should be ignored)
+data/gold_prices.csv
+models/gold_model.pkl
+models/features.pkl
+
+# Streamlit
+.streamlit/
+
+# OS
+.DS_Store
+.idea/
+.vscode/
