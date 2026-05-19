@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import os
+from datetime import datetime
 
 DB_PATH = "data/portfolio.db"
 
@@ -28,13 +29,68 @@ def init_db():
                   balance REAL,
                   holdings REAL)''')
     
+    # Table for daily performance tracking
+    c.execute('''CREATE TABLE IF NOT EXISTS performance
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  total_value REAL,
+                  time TEXT)''')
+    
     # Initialize portfolio if empty
     c.execute("SELECT COUNT(*) FROM portfolio")
     if c.fetchone()[0] == 0:
         c.execute("INSERT INTO portfolio (id, balance, holdings) VALUES (1, 100000.0, 0.0)")
     
+    # Table for alerts
+    c.execute('''CREATE TABLE IF NOT EXISTS alerts
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  target_price REAL,
+                  currency TEXT,
+                  direction TEXT,
+                  email TEXT,
+                  status TEXT)''')
+    
     conn.commit()
     conn.close()
+
+def add_alert(target_price, currency, direction, email):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO alerts (target_price, currency, direction, email, status) VALUES (?, ?, ?, ?, 'ACTIVE')",
+              (target_price, currency, direction, email))
+    conn.commit()
+    conn.close()
+
+def get_active_alerts():
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query("SELECT id, target_price, currency, direction, email FROM alerts WHERE status = 'ACTIVE'", conn)
+    conn.close()
+    return df
+
+def deactivate_alert(alert_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE alerts SET status = 'TRIGGERED' WHERE id = ?", (alert_id,))
+    conn.commit()
+    conn.close()
+
+def log_performance(total_value):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    # Only log once per hour to keep DB light
+    now = datetime.now().strftime("%Y-%m-%d %H:00")
+    c.execute("SELECT id FROM performance WHERE time = ?", (now,))
+    if c.fetchone() is None:
+        c.execute("INSERT INTO performance (total_value, time) VALUES (?, ?)", (total_value, now))
+    else:
+        c.execute("UPDATE performance SET total_value = ? WHERE time = ?", (total_value, now))
+    conn.commit()
+    conn.close()
+
+def get_performance_history():
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query("SELECT total_value, time FROM performance ORDER BY time ASC", conn)
+    conn.close()
+    return df
 
 def get_portfolio():
     conn = sqlite3.connect(DB_PATH)
